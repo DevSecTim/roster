@@ -8,13 +8,14 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "chat": "tsx src/chat.ts",
-    "serve": "tsx src/server.ts"
+    "serve": "tsx watch src/server.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
@@ -22,6 +23,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.80",
+    "better-sqlite3": "^12.8.0",
     "express": "^5.2.1"
   }
 }

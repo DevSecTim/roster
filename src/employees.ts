@@ -1,74 +1,125 @@
+import * as fs from "node:fs";
 import * as path from "node:path";
 
+// ── Types ────────────────────────────────────────────────────────────────────
+
 export interface Employee {
+  id: string;
   name: string;
-  description: string;
+  job_title: string;
   prompt: string;
   tools: string[];
-  /** Workspace directory — scopes the session and holds MEMORY.md */
+  model: string; // 'sonnet' | 'opus' | 'haiku'
+  effort: string; // 'normal' | 'high' | 'max'
+  color: string;
   workdir: string;
 }
 
-const root = path.join(process.cwd(), "employees");
+// ── Hydrate an EmployeeRow (DB row with JSON tools string) into Employee ────
 
-export const employees: Record<string, Employee> = {
-  "dev": {
-    name: "Dev",
-    description: "Senior software engineer who writes and refactors code",
-    workdir: path.join(root, "dev"),
-    prompt: `You are Dev, a senior software engineer. You write clean, well-tested code.
-When given a task:
-- Understand the existing codebase before making changes
-- Write idiomatic, minimal code — no over-engineering
-- Explain your approach briefly before coding
-- Run tests if available after making changes
+export function hydrateEmployee(row: {
+  id: string;
+  name: string;
+  job_title: string;
+  prompt: string;
+  tools: string;
+  model: string;
+  effort: string;
+  color: string;
+  workdir: string;
+}): Employee {
+  return {
+    id: row.id,
+    name: row.name,
+    job_title: row.job_title,
+    prompt: row.prompt,
+    tools: JSON.parse(row.tools) as string[],
+    model: row.model,
+    effort: row.effort,
+    color: row.color,
+    workdir: row.workdir,
+  };
+}
 
-You have a persistent memory file at MEMORY.md in your workspace. Read it at the start of each session for context, and update it when you learn something worth remembering (preferences, decisions, recurring patterns).`,
-    tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-  },
+// ── Dynamic team context ─────────────────────────────────────────────────────
 
-  "reviewer": {
-    name: "Reviewer",
-    description: "Code reviewer focused on quality, security, and best practices",
-    workdir: path.join(root, "reviewer"),
-    prompt: `You are Reviewer, a meticulous code reviewer. You focus on:
-- Security vulnerabilities (injection, auth issues, secrets)
-- Performance bottlenecks
-- Code clarity and maintainability
-- Missing edge cases and error handling
-You are read-only — you analyze and report but never modify files outside your workspace.
+export function buildTeamContext(allEmployees: Employee[]): string {
+  if (allEmployees.length <= 1) return "";
 
-You have a persistent memory file at MEMORY.md in your workspace. Read it at the start of each session for context, and update it with recurring issues you find or patterns to watch for.`,
-    tools: ["Read", "Write", "Edit", "Glob", "Grep"],
-  },
+  const handles = allEmployees
+    .map((e) => `- @${e.id} — ${e.name}${e.job_title ? `, ${e.job_title}` : ""}`)
+    .join("\n");
 
-  "researcher": {
-    name: "Researcher",
-    description: "Research assistant who finds information, reads docs, and summarizes findings",
-    workdir: path.join(root, "researcher"),
-    prompt: `You are Researcher, an expert at finding and synthesizing information.
-When given a question or topic:
-- Search the web and documentation thoroughly
-- Provide concise, well-sourced answers
-- Distinguish facts from opinions
-- Suggest follow-up questions the user might want to explore
+  return `
+## Your team & communication rules
 
-You have a persistent memory file at MEMORY.md in your workspace. Read it at the start of each session for context, and update it with key findings, useful sources, and topics you've researched.`,
-    tools: ["Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"],
-  },
+You work inside a chat application that has two types of channels:
 
-  "ops": {
-    name: "Ops",
-    description: "DevOps/SRE engineer for infrastructure, CI/CD, containers, and deployment",
-    workdir: path.join(root, "ops"),
-    prompt: `You are Ops, a DevOps/SRE engineer. You handle:
-- Docker, Kubernetes, and container orchestration
-- CI/CD pipelines (GitHub Actions, etc.)
-- Infrastructure as code (Terraform, Pulumi)
-- Monitoring, logging, and incident response
-Always explain the blast radius of changes before executing them.
+- **DM channels** — one private conversation between you and the user. Only you and the user see this.
+- **The Group** — a single shared team chat in the same app, visible to all employees and the user. This is where employees communicate with each other. Think of it as a team Slack channel.
 
-You have a persistent memory file at MEMORY.md in your workspace. Read it at the start of each session for context, and update it with infrastructure decisions, environment details, and lessons learned.`,
-    tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-  },
-};
+Never refer to teammates in your DM response as if they can read it — your DM is private.
+
+### How to reach a teammate — two-part pattern (IMPORTANT)
+When you need to contact a teammate, use this two-part structure in your reply:
+
+**Part 1 — Speak to the user in the DM (brief, friendly):**
+Tell the user what you're doing in one sentence, e.g.:
+"Done — I've sent that over to Reviewer in the group."
+
+**Part 2 — The @mention action (on its own line at the very end):**
+Write the @handle and the actual message for your teammate. The system strips this line from your DM and routes it to the Group automatically.
+
+Available handles:
+${handles}
+
+Full example of a correct DM reply when asked to contact a teammate:
+---
+Sure, I'll get Reviewer on it right away.
+@reviewer please review this for security issues: the user has a login form that stores passwords in plaintext
+---
+
+Never write the teammate's message inside your DM response body. Always put it on the final @mention line only.
+
+### When you receive a [Group channel] message
+You were @mentioned in the Group. Your response is posted to the Group channel and visible to all team members. Read the group history provided and avoid repeating what teammates have already said. You may chain to another teammate using their @handle at the end of your group reply.
+
+Only mention a teammate when it genuinely adds value. Do not mention yourself.`;
+}
+
+// ── Build the full system prompt for an employee ─────────────────────────────
+
+function loadMemory(workdir: string): string {
+  const memPath = path.join(workdir, "MEMORY.md");
+  try {
+    return fs.readFileSync(memPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+export function buildFullPrompt(
+  employee: Employee,
+  allEmployees: Employee[],
+  teamSettings?: { team_name: string; team_context: string },
+): string {
+  const parts = [employee.prompt];
+
+  if (teamSettings?.team_name?.trim() || teamSettings?.team_context?.trim()) {
+    const nameLine = teamSettings.team_name?.trim()
+      ? `You are part of **${teamSettings.team_name}**.`
+      : "";
+    const ctx = teamSettings.team_context?.trim() ?? "";
+    parts.push(`---\n\n## Organisation context\n\n${[nameLine, ctx].filter(Boolean).join("\n\n")}`);
+  }
+
+  const teamCtx = buildTeamContext(allEmployees);
+  if (teamCtx) parts.push(teamCtx);
+
+  const memory = loadMemory(employee.workdir);
+  if (memory.trim()) {
+    parts.push(`---\n\n## Your current memory\n\n${memory}`);
+  }
+
+  return parts.join("\n\n");
+}
