@@ -1,4 +1,4 @@
-# claude-harness
+# roster
 
 Text your Claude-powered AI employees from a web UI, terminal, or programmatically — inspired by [OpenClaw](https://github.com/openclaw/openclaw).
 
@@ -42,7 +42,7 @@ npm run chat
 ### Programmatic
 
 ```ts
-import { employees, messageEmployee } from "claude-harness";
+import { employees, messageEmployee } from "roster";
 
 const result = await messageEmployee(
   employees["researcher"]!,

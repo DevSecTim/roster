@@ -1,5 +1,5 @@
 {
-  "name": "claude-harness",
+  "name": "roster",
   "version": "1.0.0",
   "description": "Text your Claude-powered AI employees",
   "main": "dist/index.js",

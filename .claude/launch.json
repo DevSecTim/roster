@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "claude-harness",
+      "name": "roster",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "serve"],
       "port": 3000
