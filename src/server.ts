@@ -1,6 +1,6 @@
 import express from "express";
 import { employees } from "./employees.js";
-import { messageEmployee } from "./harness.js";
+import { getSession, setSession } from "./sessions.js";
 
 const app = express();
 const PORT = 3000;
@@ -54,7 +54,6 @@ app.get("/", (_req, res) => {
     )};
 
     let activeEmployee = EMPLOYEES[0]?.id ?? '';
-    const sessions = {};
 
     // Build employee chips
     const bar = document.getElementById('emp-bar');
@@ -107,7 +106,6 @@ app.get("/", (_req, res) => {
           body: JSON.stringify({
             employeeId: activeEmployee,
             message: text,
-            sessionId: sessions[activeEmployee],
           }),
         });
 
@@ -126,7 +124,6 @@ app.get("/", (_req, res) => {
               bubble.innerHTML = '<div class="label">' + emp.name + '</div>' + escHtml(accumulated);
               msgs.scrollTop = msgs.scrollHeight;
             } else if (data.type === 'done') {
-              sessions[activeEmployee] = data.sessionId;
               bubble.classList.remove('streaming');
             }
           }
@@ -162,10 +159,9 @@ app.get("/employees", (_req, res) => {
 
 // Streaming chat endpoint using SSE
 app.post("/chat", async (req, res) => {
-  const { employeeId, message, sessionId } = req.body as {
+  const { employeeId, message } = req.body as {
     employeeId: string;
     message: string;
-    sessionId?: string;
   };
 
   const employee = employees[employeeId];
@@ -179,13 +175,17 @@ app.post("/chat", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
 
   const { query } = await import("@anthropic-ai/claude-agent-sdk");
+  const { buildSystemPrompt } = await import("./harness.js");
+
+  const existingSession = getSession(employeeId);
 
   const queryOptions = {
     allowedTools: employee.tools,
-    systemPrompt: employee.prompt,
+    systemPrompt: buildSystemPrompt(employee),
     permissionMode: "acceptEdits" as const,
-    cwd: process.cwd(),
-    ...(sessionId ? { resume: sessionId } : {}),
+    cwd: employee.workdir,
+    additionalDirectories: [process.cwd()],
+    ...(existingSession ? { resume: existingSession } : {}),
   };
 
   let resultSessionId = "";
@@ -205,7 +205,8 @@ app.post("/chat", async (req, res) => {
       }
 
       if (msg.type === "result" && msg.subtype === "success") {
-        res.write(`data: ${JSON.stringify({ type: "done", sessionId: resultSessionId })}\n\n`);
+        if (resultSessionId) setSession(employeeId, resultSessionId);
+        res.write(`data: ${JSON.stringify({ type: "done" })}\n\n`);
       }
     }
   } catch (err) {

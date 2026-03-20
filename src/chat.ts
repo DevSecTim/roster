@@ -20,9 +20,6 @@ async function main() {
   console.log("\nUsage: @<employee> <message>");
   console.log("Type 'quit' to exit.\n");
 
-  // Track sessions per employee for conversation continuity
-  const sessions = new Map<string, string>();
-
   while (true) {
     const input = await prompt("> ");
     const trimmed = input.trim();
@@ -35,7 +32,6 @@ async function main() {
 
     if (!trimmed) continue;
 
-    // Parse @employee message
     const match = trimmed.match(/^@(\S+)\s+([\s\S]+)$/);
     if (!match) {
       console.log("Usage: @<employee> <message>  (e.g. @dev write a hello world script)\n");
@@ -55,16 +51,7 @@ async function main() {
     console.log(`\n[${employee.name}] ...`);
 
     try {
-      const existingSession = sessions.get(employeeId);
-      const result = await messageEmployee(employee, message, {
-        ...(existingSession ? { sessionId: existingSession } : {}),
-        cwd: process.cwd(),
-      });
-
-      // Store session for conversation continuity
-      if (result.sessionId) {
-        sessions.set(employeeId, result.sessionId);
-      }
+      await messageEmployee(employeeId, employee, message);
     } catch (err) {
       console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }

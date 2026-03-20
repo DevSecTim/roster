@@ -1,11 +1,11 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { Options } from "@anthropic-ai/claude-agent-sdk";
 import type { Employee } from "./employees.js";
+import { getSession, setSession } from "./sessions.js";
 
 export interface HarnessOptions {
-  /** Working directory for the agent */
-  cwd?: string;
-  /** Permission mode: "default" requires approval, "acceptEdits" auto-approves safe ops */
   permissionMode?: "default" | "acceptEdits" | "bypassPermissions" | "plan";
 }
 
@@ -14,24 +14,43 @@ export interface MessageResult {
   sessionId: string;
 }
 
+function loadMemory(workdir: string): string {
+  const memPath = path.join(workdir, "MEMORY.md");
+  try {
+    return fs.readFileSync(memPath, "utf8");
+  } catch {
+    return "";
+  }
+}
+
+export function buildSystemPrompt(employee: Employee): string {
+  const memory = loadMemory(employee.workdir);
+  if (!memory.trim()) return employee.prompt;
+  return `${employee.prompt}\n\n---\n\n## Your current memory\n\n${memory}`;
+}
+
 /**
  * Send a message to an employee agent and stream the response.
- * Supports multi-turn via sessionId for conversation continuity.
+ * Sessions and memory persist across restarts via disk storage.
  */
 export async function messageEmployee(
+  employeeId: string,
   employee: Employee,
   message: string,
-  options: HarnessOptions & { sessionId?: string } = {},
+  options: HarnessOptions = {},
 ): Promise<MessageResult> {
   const chunks: string[] = [];
   let sessionId = "";
 
+  const existingSession = getSession(employeeId);
+
   const queryOptions: Options = {
     allowedTools: employee.tools,
-    systemPrompt: employee.prompt,
+    systemPrompt: buildSystemPrompt(employee),
     permissionMode: options.permissionMode ?? "default",
-    cwd: options.cwd,
-    resume: options.sessionId,
+    cwd: employee.workdir,
+    additionalDirectories: [process.cwd()],
+    resume: existingSession,
   };
 
   for await (const msg of query({ prompt: message, options: queryOptions })) {
@@ -40,8 +59,7 @@ export async function messageEmployee(
     }
 
     if (msg.type === "assistant") {
-      const content = msg.message.content;
-      for (const block of content) {
+      for (const block of msg.message.content) {
         if (block.type === "text") {
           process.stdout.write(block.text);
           chunks.push(block.text);
@@ -57,5 +75,10 @@ export async function messageEmployee(
   }
 
   process.stdout.write("\n");
+
+  if (sessionId) {
+    setSession(employeeId, sessionId);
+  }
+
   return { text: chunks.join(""), sessionId };
 }
