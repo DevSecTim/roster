@@ -1,19 +1,8 @@
-# roster
+# Roster
 
-Text your Claude-powered AI employees from a web UI, terminal, or programmatically — inspired by [OpenClaw](https://github.com/openclaw/openclaw).
+Text your Claude-powered AI employees from a web UI or terminal — inspired by [OpenClaw](https://github.com/openclaw/openclaw).
 
 Built on the [`@anthropic-ai/claude-agent-sdk`](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk).
-
-## Employees
-
-| Name | Role | Tools |
-|------|------|-------|
-| **Dev** | Senior software engineer — writes and refactors code | Read, Write, Edit, Bash, Glob, Grep |
-| **Reviewer** | Code reviewer (read-only) — quality, security, best practices | Read, Glob, Grep |
-| **Researcher** | Research assistant — web search and doc synthesis | Read, Glob, Grep, WebSearch, WebFetch |
-| **Ops** | DevOps/SRE — containers, CI/CD, infrastructure | Read, Write, Edit, Bash, Glob, Grep |
-
-Add your own in `src/employees.ts`.
 
 ## Usage
 
@@ -25,6 +14,8 @@ npm run serve
 ```
 
 Select an employee chip, type a message, press Send. Responses stream in real-time. Conversations persist per-employee across messages.
+
+Use the **Group** channel to message multiple employees in one thread using `@handle` mentions. Employees can mention each other to hand off tasks.
 
 ### Terminal REPL
 
@@ -39,42 +30,11 @@ npm run chat
 @ops write a Dockerfile for this project
 ```
 
-### Programmatic
+## Managing Employees
 
-```ts
-import { employees, messageEmployee } from "roster";
+Employees are created and managed through the web UI — click **+** in the employee bar to add one, or the pencil icon to edit. Each employee has a name, job title, background prompt, model, effort level, and colour.
 
-const result = await messageEmployee(
-  employees["researcher"]!,
-  "What is OpenClaw?",
-  { permissionMode: "acceptEdits" }
-);
-
-// Continue the conversation
-const followUp = await messageEmployee(
-  employees["researcher"]!,
-  "How does it compare to this project?",
-  { sessionId: result.sessionId }
-);
-```
-
-## Adding Employees
-
-Edit `src/employees.ts`:
-
-```ts
-export const employees: Record<string, Employee> = {
-  "your-employee": {
-    name: "Your Employee",
-    description: "What they do (used for routing)",
-    prompt: `You are ... your system prompt here`,
-    tools: ["Read", "Glob", "Grep"],
-  },
-  // ...
-};
-```
-
-Available tools: `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep`, `WebSearch`, `WebFetch`.
+Team-wide context (shared across all employees' system prompts) is set via the **⚙ Team Settings** button.
 
 ## Scripts
 
@@ -83,4 +43,4 @@ Available tools: `Read`, `Write`, `Edit`, `Bash`, `Glob`, `Grep`, `WebSearch`, `
 | `npm run serve` | Start the web UI on port 3000 |
 | `npm run chat` | Interactive terminal REPL |
 | `npm run build` | Compile TypeScript to `dist/` |
-| `npm run dev` | Watch mode for library development |
+| `npm run dev` | Watch mode |

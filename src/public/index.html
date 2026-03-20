@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,interactive-widget=resizes-content"/>
+<title>Roster</title>
+<link rel="stylesheet" href="/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
+</head>
+<body>
+<header>
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+    <circle cx="10" cy="6" r="3.5" fill="#58a6ff"/>
+    <circle cx="3.5" cy="15" r="3" fill="#58a6ff" opacity="0.55"/>
+    <circle cx="10" cy="16.5" r="3" fill="#58a6ff" opacity="0.8"/>
+    <circle cx="16.5" cy="15" r="3" fill="#58a6ff" opacity="0.55"/>
+  </svg>
+  <h1>Roster</h1>
+  <span id="team-subtitle" style="font-size:0.78rem;color:#8b949e;font-weight:500"></span>
+  <div style="flex:1"></div>
+  <button id="settings-btn" title="Team settings" style="background:none;border:none;cursor:pointer;color:#8b949e;font-size:1rem;padding:2px 4px;border-radius:4px;transition:color 0.12s" onmouseover="this.style.color='#e6edf3'" onmouseout="this.style.color='#8b949e'">&#9881;</button>
+</header>
+<div class="employees-bar" id="emp-bar"></div>
+<div id="messages"></div>
+<div id="autocomplete"></div>
+<div id="input-row">
+  <textarea id="msg-input" placeholder="Message your employee..." rows="1"></textarea>
+  <button id="send-btn">Send</button>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-overlay" class="modal-overlay">
+<div class="modal">
+  <h2>Team Settings</h2>
+  <div class="field"><label>Name</label><input type="text" id="s-team-name" placeholder="e.g. Acme Corp — Product Team"/></div>
+  <div class="field">
+    <label>Description</label>
+    <textarea id="s-team-context" style="min-height:140px" placeholder="Shared context injected into every employee&#39;s system prompt. Describe your product, stack, working norms, goals, or anything the whole team should know..."></textarea>
+  </div>
+  <div class="actions">
+    <button class="btn btn-cancel" id="s-cancel-btn">Cancel</button>
+    <button class="btn btn-primary" id="s-save-btn">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Employee modal -->
+<div id="modal-overlay" class="modal-overlay">
+<div class="modal">
+  <h2 id="modal-title">New Employee</h2>
+  <div class="field row">
+    <div><label>Name</label><input type="text" id="m-name" placeholder="e.g. Alex"/></div>
+    <div><label>Job Title</label><input type="text" id="m-job-title" placeholder="e.g. Senior Designer"/></div>
+  </div>
+  <div class="field">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <label style="margin:0">Background</label>
+      <button class="suggest-btn" id="m-suggest-btn">&#10024; Auto-suggest</button>
+    </div>
+    <textarea id="m-prompt" placeholder="Describe the employee's role, expertise, and working style..."></textarea>
+  </div>
+  <div class="field row">
+    <div><label>Model</label><select id="m-model"><option value="sonnet">Sonnet</option><option value="opus">Opus</option><option value="haiku">Haiku</option></select></div>
+    <div><label>Effort</label><select id="m-effort"><option value="normal">Normal</option><option value="high">High</option><option value="max">Max</option></select></div>
+  </div>
+  <div class="field">
+    <label>Colour</label>
+    <div class="color-swatches" id="m-color-swatches"></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-danger" id="m-delete-btn" style="margin-right:auto;display:none">Delete</button>
+    <button class="btn btn-cancel" id="m-cancel-btn">Cancel</button>
+    <button class="btn btn-primary" id="m-save-btn">Save</button>
+  </div>
+</div>
+</div>
+
+<!-- Server-injected bootstrap data (read by app.js) -->
+<script id="init-data" type="application/json">{"employees":<%~ it.employeesJson %>,"settings":<%~ it.settingsJson %>}</script>
+<script src="/app.js"></script>
+</body>
+</html>

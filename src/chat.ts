@@ -15,7 +15,7 @@ function prompt(question: string): Promise<string> {
 async function main() {
   initDb();
 
-  console.log("=== Claude Harness - Text Your AI Employees ===\n");
+  console.log("=== Roster - Text Your AI Employees ===\n");
 
   const rows = getAllEmployees();
   if (rows.length === 0) {

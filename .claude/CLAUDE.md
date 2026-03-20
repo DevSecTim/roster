@@ -15,13 +15,17 @@ There are no tests yet. Type-checking (`npx tsc --noEmit`) is the primary correc
 
 ## Architecture
 
-The project has three layers on top of `@anthropic-ai/claude-agent-sdk`:
+The project has four layers on top of `@anthropic-ai/claude-agent-sdk`:
 
-**`src/employees.ts`** — The only file users need to edit. Defines `Employee` objects: a `name`, `description`, `prompt` (the system prompt / persona), and `tools` (the allowlist passed to the SDK). Adding a new employee is just adding an entry to the `employees` record.
+**`src/db.ts`** — SQLite database layer (via `better-sqlite3`). Stores employees, sessions, group chat history, and team settings. Employees are managed entirely through the UI — there is no static config file to edit.
+
+**`src/employees.ts`** — Helpers used by the server: `hydrateEmployee()` (maps a DB row to a full `Employee` object), `buildFullPrompt()` (assembles the system prompt with team context and peer roster), and `buildTeamContext()`.
 
 **`src/harness.ts`** — Thin wrapper around the SDK's `query()` function. `messageEmployee(employee, message, options)` handles session resumption (via `options.sessionId` → SDK `resume`), streams assistant text blocks to stdout, and returns `{ text, sessionId }` for multi-turn continuity.
 
-**`src/server.ts`** — Express HTTP server. The entire frontend is a single inlined HTML string in the `GET /` handler (no build step, no separate files). The `POST /chat` endpoint runs the same `query()` loop as the harness but writes SSE frames (`data: {...}\n\n`) for streaming to the browser. The frontend tracks `sessions[employeeId]` in memory and sends `sessionId` back on each request to maintain per-employee conversation history.
+**`src/server.ts`** — Express HTTP server. Serves the frontend from `src/public/` using the `eta` template engine (for server-side data injection). The `POST /chat` endpoint runs the `query()` loop and writes SSE frames (`data: {...}\n\n`) for streaming. Sessions are persisted to SQLite.
+
+**`src/public/`** — Static frontend assets: `index.html` (eta template), `style.css`, `app.js`. No build step — served directly by `express.static`.
 
 **`src/chat.ts`** — Terminal REPL. Parses `@employeeName message` syntax, calls `messageEmployee`, and tracks sessions in a `Map<string, string>`.
 
